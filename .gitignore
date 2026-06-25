@@ -1,0 +1,23 @@
+# Kaggle credentials
+kaggle.json
+.kaggle/
+
+# Python training data and models
+backend/data/
+*.pth
+*.log
+__pycache__/
+*.pyc
+
+# Node / Vite
+node_modules/
+dist/
+.env
+
+# System / IDE
+.vscode/
+.idea/
+.DS_Store
+.gemini/
+antigravity-ide/
+*.zip

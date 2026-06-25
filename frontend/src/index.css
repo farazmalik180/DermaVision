@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Outfit", "Inter", system-ui, sans-serif;
+}
+
+@layer utilities {
+  @keyframes breathe {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 0.9;
+    }
+    50% {
+      transform: scale(1.04);
+      opacity: 1;
+    }
+  }
+  
+  .animate-breathe {
+    animation: breathe 2.5s ease-in-out infinite;
+  }
+}
