@@ -327,11 +327,11 @@ with tab_about:
         """
     )
     
-    st.markdown("### 📂 Training Dataset: ISIC 2020")
+    st.markdown("### 📂 Training Dataset: HAM10000")
     st.write(
         """
-        The model is designed to be trained on the **ISIC 2020 Challenge (Kaggle)** dataset:
-        - **Total Images**: 33,126 high-resolution dermoscopic images
+        The model is designed to be trained on the **HAM10000** dataset:
+        - **Total Images**: 10,015 high-resolution dermoscopic images
         - **Target Classes (7)**:
             1. *Melanoma* (Malignant) - High Risk
             2. *Melanocytic Nevus* (Benign Mole) - Low Risk

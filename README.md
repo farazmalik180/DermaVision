@@ -167,8 +167,8 @@ At evaluation phase, the model outputs are assessed on validation splits using:
 | Validation AUC-ROC    | 0.979  |
 | Training Accuracy     | 92.6%  |
 | Validation Accuracy   | 75.7%  |
-| Sensitivity           | TBD    |
-| Specificity           | TBD    |
+| Sensitivity           | 14.7%  |
+| Specificity           | 85.6%  |
 
 ---
 
