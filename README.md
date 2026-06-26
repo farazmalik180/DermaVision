@@ -102,6 +102,10 @@ streamlit run streamlit_app/app.py
 
 To achieve the research-grade metrics target of **AUC-ROC > 0.90**, we follow this specific model training procedure:
 
+### Hardware Setup
+- **GPU**: NVIDIA Tesla T4 (via Google Colab)
+- **Reasoning**: The T4 GPU provides 16GB of VRAM, which is sufficient to comfortably fit the EfficientNetV2-S model and a reasonable batch size during mixed-precision training. Additionally, it is widely accessible and cost-effective, making the model training easily reproducible without requiring expensive local hardware.
+
 ### Kaggle API Setup & Dataset Download
 
 The Kaggle API token is only needed during the model training phase to download the training dataset. It is **NOT** used in the deployed application at runtime. The app itself (FastAPI backend + Streamlit) requires no API keys or credentials, and end users do not need a Kaggle account.
@@ -158,12 +162,13 @@ At evaluation phase, the model outputs are assessed on validation splits using:
 
 ## 📊 Results
 
-| Metric       | Score  |
-|--------------|--------|
-| AUC-ROC      | > 0.90 |
-| Accuracy     | TBD    |
-| Sensitivity  | TBD    |
-| Specificity  | TBD    |
+| Metric                | Score  |
+|-----------------------|--------|
+| Validation AUC-ROC    | 0.979  |
+| Training Accuracy     | 92.6%  |
+| Validation Accuracy   | 75.7%  |
+| Sensitivity           | TBD    |
+| Specificity           | TBD    |
 
 ---
 
