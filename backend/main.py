@@ -77,6 +77,12 @@ async def predict(file: UploadFile = File(...)):
         confidence = float(confidence.item())
         class_idx = int(class_idx.item())
         
+        # --- FIX: Apply 0.2 classification threshold for Melanoma (Index 0) ---
+        melanoma_prob = float(probabilities[0].item())
+        if melanoma_prob > 0.2:
+            class_idx = 0
+            confidence = melanoma_prob
+        
         # Map to class details
         predicted_class = CLASSES[class_idx]
         

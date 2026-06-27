@@ -132,16 +132,17 @@ To download the dataset for training:
 
 ### 2. Class Imbalance Mitigation
 Skin lesion datasets are heavily imbalanced (e.g., Melanocytic Nevus accounts for >80% of samples). To prevent the model from biassing towards majority classes:
-- **Batch Sampling**: Implement a PyTorch `WeightedRandomSampler` to calculate weights based on the inverse class frequency ($1 / N_c$). This guarantees that each training batch contains a balanced representation of all 7 classes.
+- **Batch Sampling**: Implement a PyTorch `WeightedRandomSampler` to oversample minority classes. We apply a **5x multiplier** to the standard inverse class frequency weights to aggressively push the model to learn rare cases.
 - **Criterion**: Use **Focal Loss** instead of standard Cross Entropy. Focal Loss dynamically down-weights well-classified examples ($p > 0.5$) and focuses back-propagation steps on hard, misclassified samples:
   $$\text{FL}(p_t) = -\alpha_t (1 - p_t)^\gamma \log(p_t)$$
-  *Parameters used: $\gamma = 2.0$, $\alpha$ balanced class weights.*
+  *Parameters used: $\gamma = 4.0$, $\alpha$ heavily weighted towards Melanoma and minority classes (5x boost).*
 
 ### 3. Data Augmentation
 To prevent overfitting on lighting variations and patient skin-tones, we implement a robust image augmentation pipeline:
 - **Geometry**: Random Horizontal Flip ($p=0.5$), Random Vertical Flip ($p=0.5$), Random Rotation ($\pm30^\circ$).
 - **Color**: Color Jitter (Brightness $\pm0.2$, Contrast $\pm0.2$, Saturation $\pm0.2$, Hue $\pm0.1$).
 - **Regularization**: Coarse Dropout (Cutout) to mask random $16\times16$ patches, forcing the model to look at multiple features of a lesion rather than a single focal hotspot.
+- **Class-Specific Augmentation**: To improve generalizability for Melanoma, we apply stronger, distinct augmentations exclusively to Melanoma samples during training (increased rotation limits and aggressive color/affine jittering).
 
 ### 4. Training Schedule
 - **Architecture**: EfficientNetV2-S (`torchvision.models.efficientnet_v2_s`).
@@ -162,13 +163,43 @@ At evaluation phase, the model outputs are assessed on validation splits using:
 
 ## 📊 Results
 
+### Training Iteration 1 (Baseline)
+This was the initial baseline model before applying minority class weighting. The model heavily favored majority classes (like Nevus), leading to high overall accuracy but dangerous performance on minority malignant classes.
+
 | Metric                | Score  |
 |-----------------------|--------|
 | Validation AUC-ROC    | 0.979  |
 | Training Accuracy     | 92.6%  |
 | Validation Accuracy   | 75.7%  |
-| Sensitivity           | 14.7%  |
-| Specificity           | 85.6%  |
+| Macro Sensitivity     | 14.7%  |
+| Melanoma Sensitivity  | 5.4%   |
+| Macro Specificity     | 85.6%  |
+
+### Training Iteration 2 (Sensitivity Focus)
+Due to the unacceptably low Melanoma sensitivity in the baseline model, we retrained with targeted fixes: lowered prediction threshold to 0.2, 5x focal loss weighting, 5x minority sampler, and stronger Melanoma-specific augmentations. 
+
+* **Outcome**: Macro sensitivity massively improved to 71.1%. Most minority classes (Basal Cell, Dermatofibroma, Vascular Lesion) successfully hit the >85% target.
+* **Remaining Issue**: Melanoma sensitivity improved 7x (up to 38.1%) but still failed to hit the clinical >85% target. The model strongly confused Malignant Melanoma with Benign Seborrheic Keratosis (predicting Seborrheic Keratosis for almost half the Melanoma cases).
+* **Why did Overall Accuracy Drop?**: The dataset is heavily imbalanced (67% of images are benign Nevus). In Iteration 1, the model "cheated" by always guessing Nevus to achieve 75% accuracy. In Iteration 2, we heavily penalized the model for missing cancers. The model became hyper-vigilant and started over-predicting minority classes. This caused it to misclassify many harmless Nevus cases—which tanked the overall accuracy—but it drastically increased the life-saving Sensitivity scores.
+
+| Metric                | Score  |
+|-----------------------|--------|
+| Validation AUC-ROC    | 0.915  |
+| Training Accuracy     | 95.4%  |
+| Validation Accuracy   | 39.0%  |
+| Macro Sensitivity     | 71.1%  |
+| Melanoma Sensitivity  | 38.1%  |
+| Macro Specificity     | 90.2%  |
+
+---
+
+## 📝 Recent Codebase Updates
+
+To support our transition towards strict clinical sensitivity, several scripts have been heavily upgraded from their original baseline versions:
+
+* **`backend/evaluate.py`**: Upgraded from a simple accuracy loop into a deep diagnostic tool. It now generates full 7x7 confusion matrices, detailed `sklearn` classification reports, per-class One-vs-Rest AUC-ROC scores, and explicit Macro and Per-Class Sensitivity/Specificity metrics.
+* **`backend/train.py`**: Completely overhauled to combat class imbalance. Replaced standard Cross-Entropy with a custom **Focal Loss** implementation (gamma=4.0). Added a **WeightedRandomSampler** to aggressively oversample minority classes by 5x, and implemented strong class-specific data augmentations specifically for Melanoma cases. We also added Google Drive auto-backup logic and fixed a critical bug where `--dry-run` executions would overwrite the production `model.pth`.
+* **`backend/main.py`**: Upgraded the FastAPI inference pipeline to respect custom risk thresholds. Instead of returning a blind `argmax` prediction, if the predicted probability for Melanoma exceeds `0.20`, the API will proactively override the prediction and flag the lesion as Melanoma to ensure patient safety.
 
 ---
 

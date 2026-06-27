@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, classification_report, roc_auc_score
 
 sys.path.append(os.path.dirname(__file__))
 import torchvision.transforms as transforms
@@ -77,14 +77,17 @@ def evaluate():
     
     all_preds = []
     all_labels = []
+    all_probs = []
     
     with torch.no_grad():
         for images, labels in val_loader:
             images = images.to(device)
             outputs = model(images)
+            probs = torch.softmax(outputs, dim=1)
             _, predicted = outputs.max(1)
             
             all_preds.extend(predicted.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
             all_labels.extend(labels.numpy())
             
     cm = confusion_matrix(all_labels, all_preds, labels=list(range(len(CLASSES))))
@@ -116,6 +119,22 @@ def evaluate():
     print("\nMelanoma (Malignant) Specific:")
     print(f"Sensitivity: {sensitivities[0]*100:.2f}%")
     print(f"Specificity: {specificities[0]*100:.2f}%")
+
+    target_names = [c["name"] for c in CLASSES]
+    print("\n--- Classification Report ---")
+    print(classification_report(all_labels, all_preds, target_names=target_names))
+    
+    print("\n--- Confusion Matrix ---")
+    print(cm)
+    
+    print("\n--- Per-Class AUC-ROC ---")
+    all_probs = np.array(all_probs)
+    for i, name in enumerate(target_names):
+        try:
+            auc = roc_auc_score(np.array(all_labels) == i, all_probs[:, i])
+            print(f"{name}: {auc:.4f}")
+        except ValueError:
+            print(f"{name}: N/A (Only one class in true labels)")
 
 if __name__ == "__main__":
     evaluate()

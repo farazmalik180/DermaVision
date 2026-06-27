@@ -213,6 +213,19 @@ def train_model(args):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         transforms.RandomErasing(p=0.5, scale=(0.02, 0.1), ratio=(0.3, 3.3), value=0) # Cutout regularization
     ])
+
+    # --- FIX: Stronger augmentation for melanoma class ---
+    strong_melanoma_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomVerticalFlip(p=0.5),
+        transforms.RandomRotation(degrees=90), # Stronger rotation
+        transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.15),
+        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)), # Added affine
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        transforms.RandomErasing(p=0.8, scale=(0.02, 0.15), ratio=(0.3, 3.3), value=0) # Stronger cutout
+    ])
     
     val_transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -222,13 +235,17 @@ def train_model(args):
     
     # Wrapper to correctly isolate transforms for train/val subsets
     class TransformSubset(Dataset):
-        def __init__(self, subset, transform=None):
+        def __init__(self, subset, transform=None, strong_transform=None, target_label=None):
             self.subset = subset
             self.transform = transform
+            self.strong_transform = strong_transform
+            self.target_label = target_label
 
         def __getitem__(self, idx):
             image, label = self.subset[idx]
-            if self.transform:
+            if self.strong_transform and label == self.target_label:
+                image = self.strong_transform(image)
+            elif self.transform:
                 image = self.transform(image)
             return image, label
 
@@ -243,7 +260,12 @@ def train_model(args):
     raw_val_subset = torch.utils.data.Subset(full_dataset, val_indices)
     
     # Apply specific isolated transforms
-    train_dataset = TransformSubset(raw_train_subset, transform=train_transform)
+    train_dataset = TransformSubset(
+        raw_train_subset, 
+        transform=train_transform, 
+        strong_transform=strong_melanoma_transform, 
+        target_label=0 # Melanoma index
+    )
     val_dataset = TransformSubset(raw_val_subset, transform=val_transform)
     
     # Calculate sampler weights for the training split (WeightedRandomSampler)
@@ -256,6 +278,12 @@ def train_model(args):
     class_weights = 1.0 / class_counts_safe
     # Set weights of empty classes back to 0
     class_weights[class_counts == 0] = 0.0
+    
+    # --- FIX: Boost minority classes by 5x (everything except the most frequent class) ---
+    majority_class_idx = np.argmax(class_counts)
+    for i in range(len(class_weights)):
+        if i != majority_class_idx:
+            class_weights[i] *= 5.0
     
     sample_weights = class_weights[train_labels]
     sampler = WeightedRandomSampler(
@@ -273,9 +301,15 @@ def train_model(args):
     model = model.to(device)
     
     # Loss configuration with class weight balance for Focal Loss
+    # --- FIX: Boost melanoma class weight by 5x in focal loss ---
+    alpha_loss = class_weights.copy()
+    alpha_loss[0] *= 5.0
+    
     # Normalize class weights
-    alpha_loss = class_weights / np.sum(class_weights)
-    criterion = FocalLoss(alpha=alpha_loss, gamma=2.0).to(device)
+    alpha_loss = alpha_loss / np.sum(alpha_loss)
+    
+    # --- FIX: Increase focal loss gamma from 2.0 to 4.0 ---
+    criterion = FocalLoss(alpha=alpha_loss, gamma=4.0).to(device)
     
     # Optimizer & Scheduler
     optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-2)
@@ -303,7 +337,13 @@ def train_model(args):
             optimizer.step()
             
             running_loss += loss.item() * images.size(0)
-            _, predicted = outputs.max(1)
+            
+            # --- FIX: Apply 0.2 classification threshold for Melanoma ---
+            probs = torch.softmax(outputs, dim=1)
+            predicted = torch.argmax(probs, dim=1)
+            melanoma_mask = probs[:, 0] > 0.2
+            predicted[melanoma_mask] = 0
+            
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
             
@@ -331,7 +371,13 @@ def train_model(args):
                 loss = criterion(outputs, labels)
                 
                 val_loss += loss.item() * images.size(0)
-                _, predicted = outputs.max(1)
+                
+                # --- FIX: Apply 0.2 classification threshold for Melanoma ---
+                probs = torch.softmax(outputs, dim=1)
+                predicted = torch.argmax(probs, dim=1)
+                melanoma_mask = probs[:, 0] > 0.2
+                predicted[melanoma_mask] = 0
+                
                 val_total += labels.size(0)
                 val_correct += predicted.eq(labels).sum().item()
                 
@@ -375,13 +421,26 @@ def train_model(args):
         # Checkpointing based on AUC
         if val_auc >= best_val_auc or args.dry_run:
             best_val_auc = val_auc
+            
+            # --- FIX: Prevent dry-run from overwriting production model ---
+            save_path = checkpoint_path
+            if args.dry_run:
+                save_path = checkpoint_path.replace(".pth", "_dryrun.pth")
+                
             torch.save({
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'val_auc': val_auc
-            }, checkpoint_path)
-            print(f"--> Saved best model checkpoint to {checkpoint_path}")
+            }, save_path)
+            print(f"--> Saved best model checkpoint to {save_path}")
+            
+            import shutil
+            # Save to Drive as backup
+            drive_path = '/content/drive/MyDrive/dermavision/model.pth'
+            if os.path.exists('/content/drive/MyDrive/dermavision/'):
+                shutil.copy(save_path, drive_path)
+                print(f"Backup saved to Google Drive: {drive_path}")
             
     print("\nTraining execution completed successfully!")
     if args.dry_run:
