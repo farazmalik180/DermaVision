@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, ShieldAlert, BookOpen, UploadCloud, AlertCircle } from 'lucide-react';
+import { Activity, ShieldAlert, BookOpen, UploadCloud, AlertCircle, FolderHeart } from 'lucide-react';
 
 // Components
 import Home from './components/Home';
@@ -7,6 +7,7 @@ import Results from './components/Results';
 import About from './components/About';
 import History from './components/History';
 import PulseLoader from './components/PulseLoader';
+import MoleTracker from './components/MoleTracker';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('scan'); // 'scan', 'results', 'about'
@@ -138,6 +139,17 @@ export default function App() {
               <BookOpen className="h-4.5 w-4.5" />
               Technical Info
             </button>
+            <button
+              onClick={() => setActiveTab('tracker')}
+              className={`px-4 py-2 text-sm font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'tracker'
+                  ? 'bg-teal-50 text-teal-700'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+              }`}
+            >
+              <FolderHeart className="h-4.5 w-4.5" />
+              Profiles
+            </button>
           </nav>
         </div>
       </header>
@@ -165,6 +177,10 @@ export default function App() {
         {/* View Switcher Router */}
         {activeTab === 'about' && (
           <About onBack={handleReset} />
+        )}
+
+        {activeTab === 'tracker' && (
+          <MoleTracker />
         )}
 
         {activeTab === 'results' && result && (

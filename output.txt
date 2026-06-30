@@ -1,0 +1,64 @@
+Evaluating on device: cpu
+Class: {'name': 'Melanoma', 'risk_level': 'High', 'desc': 'Malignant skin cancer starting in melanocytes.'}
+  Sensitivity: 38.12%
+  Specificity: 80.39%
+Class: {'name': 'Melanocytic Nevus', 'risk_level': 'Low', 'desc': 'Common benign mole.'}
+  Sensitivity: 22.89%
+  Specificity: 99.09%
+Class: {'name': 'Basal Cell Carcinoma', 'risk_level': 'High', 'desc': 'Common slow-growing non-melanoma skin cancer.'}
+  Sensitivity: 85.44%
+  Specificity: 96.05%
+Class: {'name': 'Actinic Keratosis', 'risk_level': 'Moderate', 'desc': 'Pre-cancerous dry, scaly patch of skin.'}
+  Sensitivity: 73.85%
+  Specificity: 98.30%
+Class: {'name': 'Seborrheic Keratosis', 'risk_level': 'Low', 'desc': 'Common non-cancerous benign skin growth.'}
+  Sensitivity: 89.55%
+  Specificity: 65.34%
+Class: {'name': 'Dermatofibroma', 'risk_level': 'Low', 'desc': 'Common benign firm red-to-brown nodule.'}
+  Sensitivity: 91.30%
+  Specificity: 95.61%
+Class: {'name': 'Vascular Lesion', 'risk_level': 'Low', 'desc': 'Benign growths/marks made of blood vessels.'}
+  Sensitivity: 96.43%
+  Specificity: 96.86%
+
+Overall Macro Average:
+Macro Sensitivity: 71.08%
+Macro Specificity: 90.23%
+
+Melanoma (Malignant) Specific:
+Sensitivity: 38.12%
+Specificity: 80.39%
+
+--- Classification Report ---
+                      precision    recall  f1-score   support
+
+            Melanoma       0.20      0.38      0.26       223
+   Melanocytic Nevus       0.98      0.23      0.37      1341
+Basal Cell Carcinoma       0.54      0.85      0.66       103
+   Actinic Keratosis       0.59      0.74      0.66        65
+Seborrheic Keratosis       0.24      0.90      0.38       220
+      Dermatofibroma       0.19      0.91      0.32        23
+     Vascular Lesion       0.30      0.96      0.46        28
+
+            accuracy                           0.39      2003
+           macro avg       0.44      0.71      0.44      2003
+        weighted avg       0.76      0.39      0.38      2003
+
+
+--- Confusion Matrix ---
+[[ 85   5   5  19 104   3   2]
+ [337 307  57   7 494  79  60]
+ [  1   0  88   2   9   3   0]
+ [  1   0   6  48   9   1   0]
+ [ 10   1   7   4 197   1   0]
+ [  0   0   0   1   1  21   0]
+ [  0   0   0   0   1   0  27]]
+
+--- Per-Class AUC-ROC ---
+Melanoma: 0.6757
+Melanocytic Nevus: 0.8855
+Basal Cell Carcinoma: 0.9738
+Actinic Keratosis: 0.9676
+Seborrheic Keratosis: 0.9083
+Dermatofibroma: 0.9945
+Vascular Lesion: 0.9970

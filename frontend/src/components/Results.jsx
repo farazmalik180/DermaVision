@@ -1,8 +1,62 @@
-import React from 'react';
-import { AlertTriangle, ShieldCheck, RefreshCw, Eye } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { AlertTriangle, ShieldCheck, RefreshCw, Eye, Download, Save } from 'lucide-react';
+import html2canvas from 'html2canvas-pro';
+import { jsPDF } from 'jspdf';
+import { getProfiles, addScan } from '../db';
 
 export default function Results({ originalImage, result, onReset }) {
   const { label, confidence, risk_level, description, gradcam_image_base64 } = result;
+
+  const [imageBase64, setImageBase64] = useState(null);
+  const [profiles, setProfiles] = useState([]);
+  const [selectedProfileId, setSelectedProfileId] = useState('');
+  const [saveStatus, setSaveStatus] = useState('');
+  const reportRef = useRef(null);
+
+  useEffect(() => {
+    if (originalImage) {
+      const reader = new FileReader();
+      reader.onloadend = () => setImageBase64(reader.result);
+      reader.readAsDataURL(originalImage);
+    }
+    getProfiles().then(p => setProfiles(p));
+  }, [originalImage]);
+
+  const handleDownloadPDF = async () => {
+    const element = reportRef.current;
+    
+    try {
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, logging: true });
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      
+      const pdf = new jsPDF({
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait'
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      
+      const safeLabel = label ? label.replace(/\s+/g, '_') : 'Scan';
+      pdf.save(`DermaVision_Report_${safeLabel}.pdf`);
+    } catch (error) {
+      console.error("PDF generation failed:", error);
+    }
+  };
+
+  const handleSaveToProfile = async () => {
+    if (!selectedProfileId || !imageBase64) return;
+    try {
+      await addScan(selectedProfileId, imageBase64, result);
+      setSaveStatus('Saved successfully!');
+      setTimeout(() => setSaveStatus(''), 3000);
+    } catch (err) {
+      setSaveStatus('Failed to save.');
+    }
+  };
 
   const isLow = risk_level === 'Low';
   const isModerate = risk_level === 'Moderate';
@@ -25,6 +79,7 @@ export default function Results({ originalImage, result, onReset }) {
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       <div className="bg-white border border-slate-100 rounded-2xl p-6 md:p-8 shadow-sm">
         
+        <div ref={reportRef}>
         {/* Title Block */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div>
@@ -113,16 +168,48 @@ export default function Results({ originalImage, result, onReset }) {
             </p>
           </div>
         </div>
+        </div>
 
-        {/* Scan Another Button */}
-        <div className="mt-8 flex justify-center">
-          <button
-            onClick={onReset}
-            className="flex items-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl shadow-lg shadow-teal-600/10 hover:shadow-xl hover:shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
-          >
-            <RefreshCw className="h-4.5 w-4.5" />
-            Scan Another Lesion
-          </button>
+        {/* Action Buttons */}
+        <div className="mt-8 flex flex-col md:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-6">
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <select 
+              value={selectedProfileId}
+              onChange={(e) => setSelectedProfileId(e.target.value)}
+              className="text-sm border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-teal-500 bg-slate-50 flex-1"
+            >
+              <option value="">-- Select Profile --</option>
+              {profiles.map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleSaveToProfile}
+              disabled={!selectedProfileId}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-800 disabled:bg-slate-300 hover:bg-slate-900 text-white font-bold rounded-lg transition cursor-pointer"
+            >
+              <Save className="h-4 w-4" />
+              Save
+            </button>
+            {saveStatus && <span className="text-xs font-bold text-teal-600">{saveStatus}</span>}
+          </div>
+
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <button
+              onClick={handleDownloadPDF}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 border border-slate-200 text-slate-700 font-bold rounded-lg hover:bg-slate-50 transition cursor-pointer"
+            >
+              <Download className="h-4.5 w-4.5" />
+              PDF Report
+            </button>
+            <button
+              onClick={onReset}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg shadow-lg shadow-teal-600/10 hover:shadow-xl hover:shadow-teal-700/20 active:scale-[0.98] transition cursor-pointer"
+            >
+              <RefreshCw className="h-4.5 w-4.5" />
+              New Scan
+            </button>
+          </div>
         </div>
 
       </div>
