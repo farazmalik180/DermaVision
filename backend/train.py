@@ -12,6 +12,7 @@ from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 import torchvision.transforms as transforms
 from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 # Ensure backend directory is in python path
 sys.path.append(os.path.dirname(__file__))
@@ -318,6 +319,17 @@ def train_model(args):
     best_val_auc = 0.0
     checkpoint_path = os.path.join(os.path.dirname(__file__), "model.pth")
     
+    # History tracking for Bias vs Variance and Regularization analysis
+    history = {
+        'epoch': [],
+        'train_loss': [],
+        'train_acc': [],
+        'val_loss': [],
+        'val_acc': [],
+        'val_auc': [],
+        'l2_norm': []
+    }
+    
     print("\n--- Starting Training Loop ---")
     for epoch in range(epochs):
         model.train()
@@ -441,8 +453,113 @@ def train_model(args):
             if os.path.exists('/content/drive/MyDrive/dermavision/'):
                 shutil.copy(save_path, drive_path)
                 print(f"Backup saved to Google Drive: {drive_path}")
+                
+        # Calculate L2 Norm of Model Weights for Regularization Analysis
+        l2_norm = 0.0
+        for param in model.parameters():
+            if param.requires_grad:
+                l2_norm += torch.norm(param, p=2).item() ** 2
+        l2_norm = l2_norm ** 0.5
+                
+        # Append to history
+        history['epoch'].append(epoch + 1)
+        history['train_loss'].append(epoch_loss)
+        history['train_acc'].append(epoch_acc)
+        history['val_loss'].append(val_epoch_loss)
+        history['val_acc'].append(val_epoch_acc)
+        history['val_auc'].append(val_auc)
+        history['l2_norm'].append(l2_norm)
             
     print("\nTraining execution completed successfully!")
+    
+    # Save training history and plot learning curves
+    history_df = pd.DataFrame(history)
+    history_csv_path = os.path.join(os.path.dirname(__file__), "training_history.csv")
+    if args.dry_run:
+        history_csv_path = history_csv_path.replace(".csv", "_dryrun.csv")
+    history_df.to_csv(history_csv_path, index=False)
+    print(f"Saved training history to {history_csv_path}")
+    
+    # Generate Bias vs Variance Learning Curves Plot
+    plt.figure(figsize=(12, 5))
+    
+    # Loss plot
+    plt.subplot(1, 2, 1)
+    plt.plot(history['epoch'], history['train_loss'], label='Train Loss', marker='o')
+    plt.plot(history['epoch'], history['val_loss'], label='Val Loss', marker='o')
+    plt.title('Loss vs. Epochs (Bias vs Variance)')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.grid(True)
+    
+    # Accuracy plot
+    plt.subplot(1, 2, 2)
+    plt.plot(history['epoch'], history['train_acc'], label='Train Accuracy', marker='o')
+    plt.plot(history['epoch'], history['val_acc'], label='Val Accuracy', marker='o')
+    plt.title('Accuracy vs. Epochs (Bias vs Variance)')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plot_path = os.path.join(os.path.dirname(__file__), "learning_curves.png")
+    if args.dry_run:
+        plot_path = plot_path.replace(".png", "_dryrun.png")
+    plt.savefig(plot_path)
+    print(f"Saved learning curves plot to {plot_path}")
+    
+    # Simple Bias vs Variance Diagnostic
+    final_train_acc = history['train_acc'][-1]
+    final_val_acc = history['val_acc'][-1]
+    acc_gap = final_train_acc - final_val_acc
+    
+    print("\n--- Bias vs Variance Diagnosis ---")
+    print(f"Final Training Accuracy: {final_train_acc*100:.1f}%")
+    print(f"Final Validation Accuracy: {final_val_acc*100:.1f}%")
+    
+    if final_train_acc < 0.80:
+        print("Diagnosis: HIGH BIAS (Underfitting)")
+        print("Recommendation: Use a more complex model (EfficientNetV2-M), train longer, or reduce regularization.")
+    elif acc_gap > 0.10:
+        print("Diagnosis: HIGH VARIANCE (Overfitting)")
+        print("Recommendation: Add more data, apply stronger data augmentation, or increase dropout/weight decay.")
+    else:
+        print("Diagnosis: GOOD FIT (Balanced)")
+        print("Recommendation: Model generalizes well.")
+        
+    # Regularization Analysis Plot and Diagnosis
+    plt.figure(figsize=(8, 5))
+    plt.plot(history['epoch'], history['l2_norm'], label='L2 Norm of Weights', marker='o', color='purple')
+    plt.title('Regularization Analysis: L2 Norm of Weights vs Epochs')
+    plt.xlabel('Epoch')
+    plt.ylabel('L2 Norm')
+    plt.legend()
+    plt.grid(True)
+    
+    reg_plot_path = os.path.join(os.path.dirname(__file__), "regularization_analysis.png")
+    if args.dry_run:
+        reg_plot_path = reg_plot_path.replace(".png", "_dryrun.png")
+    plt.savefig(reg_plot_path)
+    print(f"Saved regularization analysis plot to {reg_plot_path}")
+    
+    print("\n--- Regularization Analysis Diagnosis ---")
+    initial_l2 = history['l2_norm'][0]
+    final_l2 = history['l2_norm'][-1]
+    print(f"Initial Weight L2 Norm: {initial_l2:.2f}")
+    print(f"Final Weight L2 Norm: {final_l2:.2f}")
+    
+    if final_l2 < initial_l2 * 0.5:
+        print("Diagnosis: STRONG REGULARIZATION")
+        print("Observation: Weight decay is actively suppressing weight magnitudes, which helps prevent overfitting.")
+    elif final_l2 > initial_l2 * 1.5:
+        print("Diagnosis: WEAK REGULARIZATION / HIGH CAPACITY")
+        print("Observation: Weights have grown significantly. If validation accuracy degrades, consider increasing weight decay.")
+    else:
+        print("Diagnosis: STABLE REGULARIZATION")
+        print("Observation: Weight magnitudes are stable, indicating balanced weight decay and learning rate.")
+        
     if args.dry_run:
         print("Dry-run test complete. Cleaned up dummy files.")
         # Cleanup dummy csv and dummy images

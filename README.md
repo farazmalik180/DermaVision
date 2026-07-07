@@ -121,6 +121,60 @@ To download the dataset for training:
    kaggle datasets download -d kmader/skin-cancer-mnist-ham10000
    ```
 
+### Detailed CNN Pipeline Architecture
+
+The end-to-end pipeline for training and inference is designed to maximize feature extraction while aggressively combating class imbalance.
+
+```mermaid
+graph TD
+    A[Input Image] --> B[Preprocessing & Augmentation]
+    B --> C[EfficientNetV2-S Backbone]
+    
+    subgraph CNN Architecture
+        C -->|Shallow Features| D[Fused-MBConv Blocks]
+        D -->|Deep Features| E[MBConv Blocks]
+        E -->|Final Spatial Maps| F[Global Average Pooling]
+    end
+    
+    F -->|1D Feature Vector| G[Dropout Layer]
+    G -->|Regularized Vector| H[Linear Classification Head]
+    
+    subgraph Output & Post-Processing
+        H -->|Raw Logits| I[Softmax Activation]
+        I -->|Probabilities| J{Melanoma Prob > 0.2?}
+        J -->|Yes| K[Classify as Melanoma]
+        J -->|No| L[Standard Argmax]
+    end
+    
+    E -.->|Target Layer Gradients| M[Grad-CAM Visualizer]
+```
+
+#### Pipeline Stages
+1. **Input & Preprocessing**: Images are loaded, resized to `224x224`, and normalized using standard ImageNet means `[0.485, 0.456, 0.406]` and standard deviations `[0.229, 0.224, 0.225]`. This standardizes the color distribution, accelerating model convergence.
+2. **Data Augmentation (Training Only)**: To simulate diverse clinical conditions, we apply Random Flips, Rotations, Color Jitter, and Random Erasing (Cutout). Melanoma samples receive uniquely aggressive augmentations (e.g., higher rotation degrees up to 90°, affine shifts) to enforce robust feature learning and combat extreme class imbalance.
+3. **Feature Extraction (EfficientNetV2-S Backbone)**:
+   - **Fused-MBConv (Early Layers)**: Standard depthwise convolutions in early layers are slow due to memory access overhead. EfficientNetV2 replaces them with Fused-MBConv blocks (regular convolutions) in the early stages to maximize execution speed and extract shallow textures (edges, color gradients).
+   - **MBConv (Deep Layers)**: For deeper layers, standard Mobile Inverted Bottleneck (MBConv) blocks are used. These rely on depthwise separable convolutions to efficiently extract complex, high-level structural features (lesion borders, internal network structures) while keeping parameter counts low.
+4. **Classification Head**: A Global Average Pooling (GAP) layer collapses the spatial dimensions `[B, C, H, W]` into a 1D feature vector `[B, C]`. This vector passes through a Dropout layer (to prevent overfitting by randomly zeroing out features) and finally through a dense Linear layer that maps to our 7 specific lesion classes.
+5. **Loss & Optimization (Training)**: The network optimizes using the **AdamW** optimizer, which decouples weight decay for better regularization. Learning rate is managed by a Cosine Annealing scheduler. Errors are penalized using **Focal Loss** ($\gamma=4.0$) with heavy multiplier weights given to minority and malignant classes to prevent the model from ignoring rare but fatal diseases.
+6. **Inference & Post-Processing**:
+   - Softmax is applied to the raw logits to generate a probability distribution summing to 1.
+   - **Threshold Override**: To strictly minimize False Negatives for deadly Melanoma, we override standard argmax classification. If the Melanoma probability exceeds `20%`, the system automatically flags it as Melanoma.
+   - **Grad-CAM**: The gradients flowing into the final convolutional layer are tapped to generate class activation heatmaps. This provides clinical interpretability by overlaying a heatmap on the original image, showing exactly which visual features the CNN focused on.
+   - **Layer-wise Feature Visualization**: We also provide an offline diagnostic tool (`backend/visualize_features.py`) to extract and plot the intermediate feature maps from the backbone. This allows researchers to see exactly how the network's understanding of a lesion transitions from shallow textures (edges/colors) in the Fused-MBConv layers to complex semantic concepts in the deep MBConv layers.
+
+![Layer-wise Feature Visualization](./backend/layer_features.png)
+*Above: Intermediate feature maps extracted at different depths of the EfficientNetV2-S backbone for a clear lesion. Notice how early layers (Stem/Fused-MBConv) focus on fine-grained textures and borders, while deeper layers (MBConv/Final Conv) abstract these into high-level semantic patterns.*
+
+#### Forward Propagation Animation
+To better visualize how the network progressively processes the image, we also provide a forward propagation animation. This animation steps through the mean activation of every convolutional block in the network from start to finish.
+
+![Forward Propagation Animation](./backend/forward_prop.gif)
+*Above: Forward propagation of an image through all blocks of the EfficientNetV2-S backbone, illustrating the transition from spatial awareness to semantic features.*
+
+#### Why EfficientNetV2-S?
+For medical image classification (like Dermoscopy), high accuracy is paramount, but computational efficiency allows for practical deployment. We selected **EfficientNetV2-S** over traditional architectures (like ResNet or VGG) because it uses Neural Architecture Search (NAS) to jointly optimize training speed and parameter efficiency. It achieves state-of-the-art accuracy with significantly fewer parameters, making our FastAPI and Streamlit inference extremely fast even on CPU.
+
 ### 1. Dataset & Class Definition
 - **Dataset**: HAM10000 Dataset (10,015 high-resolution dermoscopic images). *Note: This dataset is used ONLY during offline training. The deployed app does not call the Kaggle API at runtime — it loads `model.pth` locally from the `backend/` folder.*
 - **Target Classes (7)**:
@@ -164,6 +218,16 @@ At evaluation phase, the model outputs are assessed on validation splits using:
 ---
 
 ## 📊 Results
+
+### Bias vs Variance Analysis
+To ensure our model generalizes well and correctly balances underfitting and overfitting, we've introduced automatic **Bias vs Variance Analysis** tracking during training.
+
+After each training run, the `train.py` script automatically:
+1. Generates `training_history.csv` with per-epoch logs.
+2. Plots `learning_curves.png` showing the training vs. validation loss and accuracy.
+3. Outputs an automated diagnosis determining if the model is currently underfitting (high bias), overfitting (high variance), or well-balanced.
+
+*Note: You can also run this diagnosis offline on an already trained model without retraining by running `python backend/analyze_bias_variance.py`. This script sweeps the training and validation datasets locally and outputs the diagnosis based on the weights in `model.pth`.*
 
 ### Training Iteration 1 (Baseline)
 This was the initial baseline model before applying minority class weighting. The model heavily favored majority classes (like Nevus), leading to high overall accuracy but dangerous performance on minority malignant classes.

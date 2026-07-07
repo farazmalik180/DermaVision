@@ -43,7 +43,7 @@ def load_model(weights_path=None):
     # If weights path is provided and exists, load it
     if weights_path and os.path.exists(weights_path):
         try:
-            checkpoint = torch.load(weights_path, map_location=torch.device('cpu'))
+            checkpoint = torch.load(weights_path, map_location=torch.device('cpu'), weights_only=False)
             if 'model_state_dict' in checkpoint:
                 model.load_state_dict(checkpoint['model_state_dict'])
             else:
