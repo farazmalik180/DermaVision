@@ -1,5 +1,6 @@
 # DermaVision 🩺
 
+
 ![UI Demonstration Demo](./ui_demo.webp)
 
 DermaVision is a research-grade, full-stack skin lesion analysis and classification application. It uses a fine-tuned **EfficientNetV2-S** deep learning model to evaluate skin lesions, map them to specific risk categories, and render **Grad-CAM** heatmaps indicating where the network focused its visual attention.
