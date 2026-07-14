@@ -32,7 +32,10 @@ class SkinLesionModel(nn.Module):
             self.model = models.efficientnet_v2_s(weights=None)
         
         in_features = self.model.classifier[1].in_features
-        self.model.classifier[1] = nn.Linear(in_features, num_classes)
+        self.model.classifier = nn.Sequential(
+            nn.Dropout(p=0.6, inplace=True), # Increased dropout to combat overfitting
+            nn.Linear(in_features, num_classes)
+        )
 
     def forward(self, x):
         return self.model(x)

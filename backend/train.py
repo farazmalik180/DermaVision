@@ -319,8 +319,9 @@ def train_model(args):
     criterion = FocalLoss(alpha=alpha_loss, gamma=4.0).to(device)
     
     # Optimizer & Scheduler
-    optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-2)
-    scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=1e-3, epochs=epochs, steps_per_epoch=len(train_loader))
+    # Increased weight decay and lowered max_lr to combat massive overfitting
+    optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-1)
+    scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=3e-4, epochs=epochs, steps_per_epoch=len(train_loader))
     
     best_val_auc = 0.0
     checkpoint_path = os.path.join(os.path.dirname(__file__), "model.pth")
