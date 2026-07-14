@@ -1,0 +1,26 @@
+node_modules/
+dist/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+env.bak/
+venv.bak/
+
+# Ignored huge model files
+*.pth
+*.pt
+*.onnx
+
+# Ignore data and logs
+data/
+*.log
+.csv
+
+# Git
+.git/
+.gitignore

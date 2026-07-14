@@ -3,7 +3,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import torch
-
+import onnxruntime as ort
 # Import custom modules
 from model import load_model, CLASSES, generate_gradcam
 from utils import check_image_blur, preprocess_image
@@ -24,9 +24,16 @@ app.add_middleware(
 )
 
 # Load the PyTorch model globally at startup
-# Looks for backend/model.pth in the same directory, or uses baseline initialized weights
 weights_file = os.path.join(os.path.dirname(__file__), "model.pth")
-model = load_model(weights_file)
+onnx_weights_file = os.path.join(os.path.dirname(__file__), "model.onnx")
+
+model = load_model(weights_file) # Always load PyTorch model for Grad-CAM
+
+if os.path.exists(onnx_weights_file):
+    print("Loading ONNX model for faster inference...")
+    ort_session = ort.InferenceSession(onnx_weights_file)
+else:
+    ort_session = None
 
 @app.get("/health")
 def health_check():
@@ -68,9 +75,16 @@ async def predict(file: UploadFile = File(...)):
         input_tensor, original_img_np = preprocess_image(contents)
         
         # 4. Perform Inference
-        with torch.no_grad():
-            outputs = model(input_tensor)
+        if ort_session is not None:
+            # Use ONNX Runtime for faster inference
+            ort_inputs = {ort_session.get_inputs()[0].name: input_tensor.numpy()}
+            ort_outs = ort_session.run(None, ort_inputs)
+            outputs = torch.tensor(ort_outs[0])
             probabilities = torch.softmax(outputs, dim=1).squeeze(0)
+        else:
+            with torch.no_grad():
+                outputs = model(input_tensor)
+                probabilities = torch.softmax(outputs, dim=1).squeeze(0)
             
         # Get highest probability class
         confidence, class_idx = torch.max(probabilities, dim=0)

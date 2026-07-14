@@ -205,7 +205,7 @@ def train_model(args):
     
     # Setup data augmentation transforms (as outlined in README)
     train_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((384, 384)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomVerticalFlip(p=0.5),
         transforms.RandomRotation(degrees=30),
@@ -217,7 +217,7 @@ def train_model(args):
 
     # --- FIX: Stronger augmentation for melanoma class ---
     strong_melanoma_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((384, 384)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomVerticalFlip(p=0.5),
         transforms.RandomRotation(degrees=90), # Stronger rotation
@@ -229,7 +229,7 @@ def train_model(args):
     ])
     
     val_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        transforms.Resize((384, 384)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
@@ -285,6 +285,9 @@ def train_model(args):
     for i in range(len(class_weights)):
         if i != majority_class_idx:
             class_weights[i] *= 5.0
+            
+    # --- FIX: Boost Seborrheic Keratosis (Index 4) specifically to distinguish from Melanoma ---
+    class_weights[4] *= 3.0
     
     sample_weights = class_weights[train_labels]
     sampler = WeightedRandomSampler(
@@ -306,6 +309,9 @@ def train_model(args):
     alpha_loss = class_weights.copy()
     alpha_loss[0] *= 5.0
     
+    # --- FIX: Boost Seborrheic Keratosis weight in loss to heavily penalize confusing it with Melanoma ---
+    alpha_loss[4] *= 3.0
+    
     # Normalize class weights
     alpha_loss = alpha_loss / np.sum(alpha_loss)
     
@@ -314,7 +320,7 @@ def train_model(args):
     
     # Optimizer & Scheduler
     optimizer = optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-2)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6)
+    scheduler = optim.lr_scheduler.OneCycleLR(optimizer, max_lr=1e-3, epochs=epochs, steps_per_epoch=len(train_loader))
     
     best_val_auc = 0.0
     checkpoint_path = os.path.join(os.path.dirname(__file__), "model.pth")
@@ -360,8 +366,8 @@ def train_model(args):
             correct += predicted.eq(labels).sum().item()
             
             train_loader_tqdm.set_postfix({'loss': loss.item(), 'acc': correct/total})
+            scheduler.step()
             
-        scheduler.step()
         epoch_loss = running_loss / total
         epoch_acc = correct / total
         
