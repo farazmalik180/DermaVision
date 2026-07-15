@@ -273,9 +273,9 @@ To combat the Seborrheic Keratosis confusion from Iteration 2, we heavily upgrad
 | Validation AUC-ROC    | 0.9129  |
 | Training Accuracy     | 96.8%   |
 | Validation Accuracy   | 25.9%   |
-| Macro Sensitivity     | TBD     |
-| Melanoma Sensitivity  | TBD     |
-| Macro Specificity     | TBD     |
+| Macro Sensitivity     | 71.1%   |
+| Melanoma Sensitivity  | 68.2%   |
+| Macro Specificity     | 88.2%   |
 
 ---
 
