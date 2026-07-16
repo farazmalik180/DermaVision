@@ -133,5 +133,20 @@ async def predict(file: UploadFile = File(...)):
         "gradcam_image_base64": f"data:image/jpeg;base64,{gradcam_base64}" if gradcam_base64 else None
     }
 
+# --- Optional Static File Serving for Hugging Face Spaces ---
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    print(f"Static directory found at {static_dir}. Serving React frontend...")
+    # Serve index.html at the root
+    @app.get("/")
+    async def serve_react_app():
+        return FileResponse(os.path.join(static_dir, "index.html"))
+    
+    # Mount all other static files (assets, css, js)
+    app.mount("/", StaticFiles(directory=static_dir), name="static")
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
