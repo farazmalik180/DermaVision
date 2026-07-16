@@ -99,8 +99,16 @@ st.markdown("""
 # Cache model loading
 @st.cache_resource
 def get_cached_model():
-    # Looks for backend/model.pth or defaults to base architecture
     weights_path = os.path.join(os.path.dirname(__file__), "..", "backend", "model.pth")
+    if not os.path.exists(weights_path):
+        from huggingface_hub import hf_hub_download
+        print("Downloading model.pth from Hugging Face...")
+        try:
+            # Download to the backend directory where it's expected
+            backend_dir = os.path.join(os.path.dirname(__file__), "..", "backend")
+            hf_hub_download(repo_id="MF180/DermaVision-EfficientNet", filename="model.pth", local_dir=backend_dir)
+        except Exception as e:
+            st.error(f"Error downloading model: {e}")
     return load_model(weights_path)
 
 model = get_cached_model()
