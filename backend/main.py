@@ -23,9 +23,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from huggingface_hub import hf_hub_download
+
 # Load the PyTorch model globally at startup
 weights_file = os.path.join(os.path.dirname(__file__), "model.pth")
 onnx_weights_file = os.path.join(os.path.dirname(__file__), "model.onnx")
+
+if not os.path.exists(weights_file):
+    print("Downloading model.pth from Hugging Face...")
+    try:
+        hf_hub_download(repo_id="MF180/DermaVision-EfficientNet", filename="model.pth", local_dir=os.path.dirname(__file__))
+    except Exception as e:
+        print(f"Error downloading model: {e}")
 
 model = load_model(weights_file) # Always load PyTorch model for Grad-CAM
 

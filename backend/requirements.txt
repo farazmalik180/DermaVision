@@ -10,4 +10,4 @@ numpy
 streamlit
 pandas
 matplotlib
-onnxruntime
+onnxruntimehuggingface-hub
