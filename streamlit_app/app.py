@@ -9,7 +9,7 @@ from io import BytesIO
 # Adjust path to import backend components
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
 from model import load_model, CLASSES, generate_gradcam
-from utils import check_image_blur, preprocess_image
+from utils import check_image_blur, preprocess_image, is_dermoscopy_image
 
 # Page Configuration
 st.set_page_config(
@@ -185,12 +185,19 @@ with tab_scan:
         st.markdown("### 📷 Upload Dermoscopy Image")
         st.write("Select a high-quality, close-up photograph of the skin lesion. Supported formats: JPG, JPEG, PNG.")
         
-        uploaded_file = st.file_uploader(
-            "Choose a file...", 
-            type=["jpg", "jpeg", "png"],
-            label_visibility="collapsed"
-        )
+        # Mandatory Consent Checkbox
+        is_confirmed = st.checkbox("I confirm this is a close-up photograph of a skin lesion.")
         
+        uploaded_file = None
+        if is_confirmed:
+            uploaded_file = st.file_uploader(
+                "Choose a file...", 
+                type=["jpg", "jpeg", "png"],
+                label_visibility="collapsed"
+            )
+        else:
+            st.info("Please check the confirmation box above to enable uploads.")
+            
         st.markdown("</div>", unsafe_allow_html=True)
         
         if uploaded_file is not None:
@@ -211,6 +218,10 @@ with tab_scan:
             
             # Step 1: Blur Check
             is_blurry, variance, err = check_image_blur(image_bytes, threshold=50.0)
+            
+            # Step 1.5: Out-of-Distribution / Non-Skin Check
+            is_valid_skin, skin_err = is_dermoscopy_image(image_bytes)
+            
             if err:
                 st.error(f"Image analysis error: {err}")
             elif is_blurry:
@@ -219,6 +230,16 @@ with tab_scan:
                     <div style="background-color: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 15px; border-radius: 8px; margin-bottom:15px;">
                         <strong>⚠️ Image Too Blurry (Variance: {variance:.1f})</strong><br>
                         The uploaded image fails our blur detection threshold (50.0). Please ensure the camera is in focus, close to the lesion, and has sufficient illumination.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+            elif not is_valid_skin:
+                st.markdown(
+                    f"""
+                    <div style="background-color: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 15px; border-radius: 8px; margin-bottom:15px;">
+                        <strong>⚠️ Invalid Image Detected</strong><br>
+                        {skin_err}
                     </div>
                     """,
                     unsafe_allow_html=True
