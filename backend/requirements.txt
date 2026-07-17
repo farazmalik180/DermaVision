@@ -10,4 +10,5 @@ numpy
 streamlit
 pandas
 matplotlib
-onnxruntimehuggingface-hub
+onnxruntime
+huggingface-hub
