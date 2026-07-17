@@ -4,6 +4,7 @@ import sys
 import numpy as np
 from PIL import Image
 import time
+from io import BytesIO
 
 # Adjust path to import backend components
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "backend"))
