@@ -258,7 +258,7 @@ Due to the unacceptably low Melanoma sensitivity in the baseline model, we retra
 | Melanoma Sensitivity  | 38.1%  |
 | Macro Specificity     | 90.2%  |
 
-### Training Iteration 5 (High-Res & Overfitting Fixes)
+### Training Iteration 3 (High-Res & Overfitting Fixes)
 To combat the Seborrheic Keratosis confusion from Iteration 2, we heavily upgraded the training pipeline:
 * Increased resolution to `384x384` to preserve microscopic textures.
 * Switched to `OneCycleLR` for faster convergence.
