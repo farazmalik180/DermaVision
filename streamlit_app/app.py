@@ -248,9 +248,6 @@ with tab_scan:
                         
                     # Save scan history
                     add_to_history(pred_class["name"], pred_class["risk_level"], confidence)
-                    
-                    # Rerender sidebar
-                    st.rerun() if "rerun_trigger" not in st.session_state else None
                 
                 # Display Results
                 risk_style = "risk-low" if pred_class['risk_level'] == "Low" else "risk-moderate" if pred_class['risk_level'] == "Moderate" else "risk-high"
@@ -302,6 +299,56 @@ with tab_scan:
                     gc_bytes = base64.b64decode(gradcam_base64)
                     gc_pil = Image.open(BytesIO(gc_bytes))
                     st.image(gc_pil, caption="Grad-CAM Hotspot Analysis", use_container_width=True)
+                    
+                st.write("---")
+                # Generate PDF Report
+                try:
+                    from fpdf import FPDF
+                    import tempfile
+                    
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Helvetica", "B", 20)
+                    pdf.cell(0, 15, "DermaVision Diagnostic Report", new_x="LMARGIN", new_y="NEXT", align="C")
+                    pdf.ln(5)
+                    
+                    pdf.set_font("Helvetica", "B", 12)
+                    pdf.cell(0, 8, f"Detected Lesion: {pred_class['name']}", new_x="LMARGIN", new_y="NEXT")
+                    pdf.set_font("Helvetica", "", 12)
+                    pdf.cell(0, 8, f"Risk Level: {pred_class['risk_level']}", new_x="LMARGIN", new_y="NEXT")
+                    pdf.cell(0, 8, f"Confidence Score: {confidence*100:.1f}%", new_x="LMARGIN", new_y="NEXT")
+                    pdf.ln(5)
+                    pdf.multi_cell(0, 6, f"Description: {pred_class['desc']}")
+                    pdf.ln(10)
+                    
+                    # Save images temporarily to embed
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_orig:
+                        pil_preview_rgb = pil_preview.convert('RGB')
+                        pil_preview_rgb.save(tmp_orig.name, format="JPEG")
+                        orig_path = tmp_orig.name
+                    
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_gc:
+                        gc_pil_rgb = gc_pil.convert('RGB')
+                        gc_pil_rgb.save(tmp_gc.name, format="JPEG")
+                        gc_path = tmp_gc.name
+                        
+                    pdf.set_font("Helvetica", "B", 14)
+                    pdf.cell(0, 10, "Visual Analysis (Original vs Grad-CAM):", new_x="LMARGIN", new_y="NEXT")
+                    y_pos = pdf.get_y()
+                    pdf.image(orig_path, x=10, y=y_pos, w=85)
+                    pdf.image(gc_path, x=105, y=y_pos, w=85)
+                    
+                    pdf_bytes = pdf.output() # In fpdf2, this returns bytearray
+                    
+                    st.download_button(
+                        label="📄 Download PDF Report",
+                        data=bytes(pdf_bytes),
+                        file_name="dermavision_report.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"Could not generate PDF: {e}")
                     
             st.markdown("</div>", unsafe_allow_html=True)
             
