@@ -4,11 +4,7 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (needed for opencv in utils)
-RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    && rm -rf /var/lib/apt/lists/*
+# System dependencies are not needed because we use opencv-python-headless
 
 # Copy the backend requirements (since Streamlit app uses the same backend logic/models)
 COPY ../backend/requirements.txt ./backend_requirements.txt
