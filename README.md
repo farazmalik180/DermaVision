@@ -1,5 +1,8 @@
 # DermaVision 🩺
 
+[![Release](https://img.shields.io/github/v/release/farazmalik180/DermaVision?label=Release&style=flat-square)](https://github.com/farazmalik180/DermaVision/releases)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://dermavisionn.streamlit.app/)
+
 DermaVision is a research-grade, full-stack skin lesion analysis and classification application. It uses a fine-tuned **EfficientNetV2-S** deep learning model to evaluate skin lesions, map them to specific risk categories, and render **Grad-CAM** heatmaps indicating where the network focused its visual attention.
 
 The repository offers two client choices:
