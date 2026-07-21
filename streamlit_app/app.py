@@ -1,4 +1,5 @@
 import streamlit as st
+# Streamlit dashboard application for DermaVision
 import os
 import sys
 import numpy as np
