@@ -1,3 +1,6 @@
+"""
+Utility script to export PyTorch models to ONNX format.
+"""
 import torch
 import os
 from model import load_model
