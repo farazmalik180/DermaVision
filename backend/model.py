@@ -1,3 +1,6 @@
+"""
+Neural network model definitions and Grad-CAM utilities for DermaVision.
+"""
 import os
 import torch
 import torch.nn as nn
