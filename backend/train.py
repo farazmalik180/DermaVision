@@ -1,3 +1,6 @@
+"""
+Training pipeline and data loader definitions for DermaVision model.
+"""
 import os
 import sys
 import argparse
