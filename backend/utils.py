@@ -1,3 +1,6 @@
+"""
+Utility functions for image processing and quality checks in DermaVision.
+"""
 import cv2
 import numpy as np
 import torch
