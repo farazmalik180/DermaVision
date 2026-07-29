@@ -1,3 +1,6 @@
+"""
+Script to generate Grad-CAM animations from input images using the DermaVision model.
+"""
 import os
 import sys
 import torch
