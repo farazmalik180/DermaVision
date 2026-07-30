@@ -1,3 +1,6 @@
+"""
+Script to analyze the bias and variance tradeoff of the DermaVision model.
+"""
 import os
 import sys
 import numpy as np
