@@ -1,3 +1,6 @@
+"""
+Utility script to generate synthetic clear and blurry test images for the model.
+"""
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
