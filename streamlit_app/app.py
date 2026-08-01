@@ -11,6 +11,7 @@ from io import BytesIO
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 from model import load_model, CLASSES, generate_gradcam
 from utils import check_image_blur, preprocess_image, is_dermoscopy_image
+from agent_groq import get_groq_response
 
 # Page Configuration
 st.set_page_config(
@@ -118,6 +119,8 @@ model = get_cached_model()
 # Initialize session state for scan history
 if "scan_history" not in st.session_state:
     st.session_state.scan_history = []
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
 def add_to_history(name, risk_level, confidence):
     # Keep last 5 scans
@@ -135,6 +138,13 @@ def add_to_history(name, risk_level, confidence):
 with st.sidebar:
     st.markdown("<h2 style='color:#0d9488; margin-bottom:5px;'>🩺 DermaVision</h2>", unsafe_allow_html=True)
     st.markdown("<p style='color:#64748b; font-style:italic;'>Early detection saves lives</p>", unsafe_allow_html=True)
+    st.write("---")
+    
+    st.markdown("### 🤖 AI Assistant Settings")
+    groq_api_key = st.text_input("Groq API Key (for Chat)", type="password", help="Get your free key at console.groq.com")
+    if "GROQ_API_KEY" in st.secrets:
+        groq_api_key = groq_api_key or st.secrets["GROQ_API_KEY"]
+    st.session_state.groq_api_key = groq_api_key
     st.write("---")
     
     st.markdown("### 🕒 Recent Scans (Last 5)")
@@ -384,6 +394,41 @@ with tab_scan:
                 """,
                 unsafe_allow_html=True
             )
+            
+            # Groq AI Chat Interface
+            st.markdown("---")
+            st.markdown("### 🤖 AI Diagnostic Assistant")
+            st.caption("Powered by Llama 3 via Groq. Ask questions about your results!")
+            
+            # Display chat messages from history on app rerun
+            for message in st.session_state.chat_history:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
+
+            # React to user input
+            if prompt := st.chat_input("Ask a question about your results..."):
+                if not st.session_state.groq_api_key:
+                    st.error("Please enter your Groq API Key in the sidebar to use the chat.")
+                else:
+                    # Display user message in chat message container
+                    st.chat_message("user").markdown(prompt)
+                    # Add user message to chat history
+                    st.session_state.chat_history.append({"role": "user", "content": prompt})
+
+                    # Build context from current results
+                    context_str = f"The user uploaded a skin lesion image which was classified as '{pred_class['name']}' with a confidence of {confidence}. The risk level is '{pred_class['risk_level']}'. A brief description of this condition is: '{pred_class['desc']}'."
+
+                    # Generate and display assistant response
+                    with st.chat_message("assistant"):
+                        with st.spinner("Thinking..."):
+                            response = get_groq_response(
+                                messages=st.session_state.chat_history,
+                                context=context_str,
+                                api_key=st.session_state.groq_api_key
+                            )
+                            st.markdown(response)
+                    # Add assistant response to chat history
+                    st.session_state.chat_history.append({"role": "assistant", "content": response})
         else:
             st.info("💡 Upload a dermoscopy photo on the left to start analysis.")
 

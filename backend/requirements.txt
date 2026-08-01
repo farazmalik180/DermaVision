@@ -12,3 +12,5 @@ pandas
 matplotlib
 onnxruntime
 huggingface-hub
+transformers
+accelerate

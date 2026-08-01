@@ -3,6 +3,7 @@ import { AlertTriangle, ShieldCheck, RefreshCw, Eye, Download, Save } from 'luci
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import { getProfiles, addScan } from '../db';
+import AgentChatbox from './AgentChatbox';
 
 export default function Results({ originalImage, result, onReset }) {
   const { label, confidence, risk_level, description, gradcam_image_base64 } = result;
@@ -211,7 +212,11 @@ export default function Results({ originalImage, result, onReset }) {
             </button>
           </div>
         </div>
-
+        
+        {/* AI Agent Chatbox Integration */}
+        <AgentChatbox 
+          context={`The user uploaded a skin lesion image which was classified as '${label}' with a confidence of ${confidence}. The risk level is '${risk_level}'. A brief description of this condition is: '${description}'. Please help the user understand these results and answer any questions they have.`} 
+        />
       </div>
     </div>
   );

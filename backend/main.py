@@ -4,12 +4,23 @@ FastAPI backend for DermaVision application.
 import os
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List
 import uvicorn
 import torch
 import onnxruntime as ort
 # Import custom modules
 from model import load_model, CLASSES, generate_gradcam
 from utils import check_image_blur, preprocess_image
+from agent import agent
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage]
+    context: str = ""
 
 app = FastAPI(
     title="DermaVision API",
@@ -135,6 +146,26 @@ async def predict(file: UploadFile = File(...)):
         "description": predicted_class["desc"],
         "gradcam_image_base64": f"data:image/jpeg;base64,{gradcam_base64}" if gradcam_base64 else None
     }
+
+@app.post("/api/chat")
+def chat_with_agent(request: ChatRequest):
+    system_prompt = (
+        "You are a helpful, empathetic medical AI assistant embedded in the DermaVision skin lesion analysis app. "
+        "Your role is to explain the model's classification results to the user and answer their questions about skin health. "
+        "Always remind the user that you are an AI and they should consult a real doctor for medical advice. "
+    )
+    if request.context:
+        system_prompt += f"\n\nContext for this user's skin lesion analysis: {request.context}"
+    
+    hf_messages = [{"role": "system", "content": system_prompt}]
+    for msg in request.messages:
+        hf_messages.append({"role": msg.role, "content": msg.content})
+        
+    try:
+        response_text = agent.generate_response(hf_messages)
+        return {"response": response_text}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- Optional Static File Serving for Hugging Face Spaces ---
 from fastapi.staticfiles import StaticFiles
