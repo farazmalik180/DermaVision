@@ -3,7 +3,7 @@
 [![Release](https://img.shields.io/github/v/release/farazmalik180/DermaVision?label=Release&style=flat-square)](https://github.com/farazmalik180/DermaVision/releases)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://dermavisionn.streamlit.app/)
 
-DermaVision is a research-grade, full-stack skin lesion analysis and classification application. It uses a fine-tuned **EfficientNetV2-S** deep learning model to evaluate skin lesions, map them to specific risk categories, and render **Grad-CAM** heatmaps indicating where the network focused its visual attention.
+DermaVision is a research-grade, full-stack skin lesion analysis and classification application. It uses a fine-tuned **EfficientNetV2-S** deep learning model to evaluate skin lesions, map them to specific risk categories, and render **Grad-CAM** heatmaps indicating where the network focused its visual attention. It also features a built-in **AI Diagnostic Assistant** that leverages LLMs (SmolLM/Llama 3) to help users understand their results in natural language.
 
 The repository offers two client choices:
 1. **Full-Stack Stack**: A FastAPI Python backend served alongside a React + Tailwind CSS client dashboard.
@@ -98,6 +98,14 @@ Open a terminal and navigate to the project root:
 streamlit run streamlit_app/app.py
 ```
 - Streamlit will launch the web application dashboard at **`http://localhost:8501`**.
+
+---
+
+## 🤖 AI Diagnostic Assistant
+
+DermaVision integrates a conversational AI assistant that provides contextual explanations for the skin lesion classifications.
+- **FastAPI + React Stack**: Uses **SmolLM2-1.7B-Instruct** (via HuggingFace `transformers`) running entirely locally for 100% data privacy without needing any API keys. 
+- **Streamlit App**: Uses **Llama 3.1 8B** (via the Groq API) for lightning-fast inference, perfect for memory-constrained cloud hosting (like Streamlit Community Cloud). Requires a free `GROQ_API_KEY`.
 
 ---
 
