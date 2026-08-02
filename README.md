@@ -1,4 +1,4 @@
-# DermaVision 🩺
+ # DermaVision 🩺
 
 [![Release](https://img.shields.io/github/v/release/farazmalik180/DermaVision?label=Release&style=flat-square)](https://github.com/farazmalik180/DermaVision/releases)
 [![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://dermavisionn.streamlit.app/)
