@@ -21,3 +21,6 @@ dist/
 .gemini/
 antigravity-ide/
 *.zip
+
+# Streamlit secrets
+.streamlit/
