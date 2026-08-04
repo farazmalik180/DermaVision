@@ -1,3 +1,6 @@
+"""
+Script to evaluate the DermaVision model performance and generate classification metrics.
+"""
 import os
 import sys
 import numpy as np
